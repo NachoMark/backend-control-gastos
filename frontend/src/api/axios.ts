@@ -3,8 +3,7 @@ import axios from 'axios';
 
 // REEMPLAZA '192.168.X.X' CON TU IP REAL
 // REEMPLAZA '3000' CON EL PUERTO DE TU BACKEND
-const BASE_URL = 'http://192.168.1.70:3000/api'; 
-
+const BASE_URL = 'https://backend-control-gastos-production.up.railway.app/api';
 export const api = axios.create({
     baseURL: BASE_URL,
     headers: {
