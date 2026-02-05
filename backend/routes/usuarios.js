@@ -1,13 +1,13 @@
-// routes/usuarios.js
+// backend/routes/usuarios.js
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const jwt = require("jsonwebtoken")
-const { pool } = require('../db'); // Importamos la conexión
+const jwt = require("jsonwebtoken");
+const User = require('../models/User'); // <--- CAMBIO IMPORTANTE: Importamos el Modelo, no la DB
 
 // Ruta: POST /api/usuarios/registro
 router.post('/registro', async (req, res) => {
-    // 1. Desestructurar los datos que vienen del Frontend
+    // 1. Desestructurar los datos
     const { nombre, email, password } = req.body;
 
     // 2. Validación básica
@@ -16,85 +16,84 @@ router.post('/registro', async (req, res) => {
     }
 
     try {
-        // 3. Verificar si el usuario ya existe
-        const [usuariosExistentes] = await pool.query(
-            'SELECT * FROM usuarios WHERE email = ?', 
-            [email]
-        );
+        // 3. Verificar si el usuario ya existe (Versión MongoDB)
+        // Ya no usamos "SELECT * FROM...", usamos .findOne()
+        const usuarioExistente = await User.findOne({ email });
 
-        if (usuariosExistentes.length > 0) {
+        if (usuarioExistente) {
             return res.status(400).json({ error: "El correo electrónico ya está registrado" });
         }
 
-        // 4. Encriptar la contraseña (Hashing)
-        const salt = await bcrypt.genSalt(10); // Nivel de complejidad
+        // 4. Encriptar la contraseña
+        const salt = await bcrypt.genSalt(10);
         const passwordEncriptada = await bcrypt.hash(password, salt);
 
-        // 5. Insertar en la base de datos
-        await pool.query(
-            'INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)',
-            [nombre, email, passwordEncriptada]
-        );
+        // 5. Crear el usuario en memoria (Versión MongoDB)
+        const nuevoUsuario = new User({
+            nombre,
+            email,
+            password: passwordEncriptada,
+            saldo_efectivo: 0, // Iniciamos en 0
+            saldo_virtual: 0
+        });
 
-        // 6. Respuesta de éxito
+        // 6. Guardarlo en la base de datos
+        await nuevoUsuario.save();
+
         res.status(201).json({ message: "Usuario registrado exitosamente" });
 
     } catch (error) {
-        console.error(error);
+        console.error("Error en registro:", error);
         res.status(500).json({ error: "Error en el servidor al registrar usuario" });
     }
 });
 
+// Ruta: POST /api/usuarios/login
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
-    // 1. Validar que enviaron datos
     if (!email || !password) {
         return res.status(400).json({ error: "Faltan datos (email o password)" });
     }
 
     try {
-        // 2. Buscar al usuario por email
-        const [usuarios] = await pool.query(
-            'SELECT * FROM usuarios WHERE email = ?', 
-            [email]
-        );
+        // 1. Buscar al usuario por email (Versión MongoDB)
+        const usuario = await User.findOne({ email });
 
-        // Si el array está vacío, es que el usuario no existe
-        if (usuarios.length === 0) {
+        if (!usuario) {
             return res.status(400).json({ error: "Credenciales inválidas" });
         }
 
-        const usuario = usuarios[0];
-
-        // 3. Verificar la contraseña (comparar la que enviaron con la encriptada)
+        // 2. Verificar la contraseña
         const passwordCorrecta = await bcrypt.compare(password, usuario.password);
 
         if (!passwordCorrecta) {
             return res.status(400).json({ error: "Credenciales inválidas" });
         }
 
-        // 4. Generar el Token (La "pulsera" digital)
-        // Guardamos el ID del usuario dentro del token para saber quién es
+        // 3. Generar el Token
+        // Nota: En MongoDB el ID se llama "_id", pero Mongoose permite usar ".id" también
         const token = jwt.sign(
-            { id: usuario.id, nombre: usuario.nombre }, 
-            process.env.JWT_SECRET || 'secreto_temporal', // Usa la clave del .env
-            { expiresIn: '30d' } // El token dura 30 días
+            { id: usuario._id, nombre: usuario.nombre }, 
+            process.env.JWT_SECRET || 'secreto_temporal',
+            { expiresIn: '30d' }
         );
 
-        // 5. Enviar el token y los datos básicos al usuario
+        // 4. Responder al Frontend
         res.json({
             message: "Login exitoso",
-            token, // El celular guardará esto
+            token,
             usuario: {
-                id: usuario.id,
+                id: usuario._id,
                 nombre: usuario.nombre,
-                email: usuario.email
+                email: usuario.email,
+                saldo_efectivo: usuario.saldo_efectivo,
+                saldo_virtual: usuario.saldo_virtual
             }
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Error en login:", error);
         res.status(500).json({ error: "Error en el servidor al iniciar sesión" });
     }
 });
