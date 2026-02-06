@@ -38,13 +38,17 @@ router.post('/cargar', auth, async (req, res) => {
 router.get('/saldo', auth, async (req, res) => {
     try {
         const usuario = await User.findById(req.usuario.id);
+        if (!usuario) {
+            return res.status(404).json({ error: "Usuario no existe en BD" });
+        }
         res.json({
-            saldo_efectivo: usuario.saldo_efectivo,
-            saldo_virtual: usuario.saldo_virtual
+            saldo_efectivo: usuario.saldo_efectivo || 0, // El || 0 evita errores si es null
+            saldo_virtual: usuario.saldo_virtual || 0
         });
     } catch (error) {
-        res.status(500).json({ error: "Error al obtener saldo" });
+        // ESTA LÍNEA ES LA QUE NOS FALTABA PARA VER EL ERROR:
+        console.error("❌ ERROR EN WALLET:", error); 
+        res.status(500).json({ error: "Error de servidor al obtener saldo" });
     }
 });
-
 module.exports = router;

@@ -1,25 +1,27 @@
-// backend/middleware/auth.js
 const jwt = require('jsonwebtoken');
 
 module.exports = function(req, res, next) {
-    // 1. Leer el token que viene en el "Header" de la petición
-    const token = req.header('Authorization');
+    // 1. Leer el token del header
+    const token = req.header('x-auth-token');
 
-    // 2. Si no hay token, no lo dejamos pasar
+    // 2. Si no hay token, prohibir paso
     if (!token) {
-        return res.status(401).json({ error: "No hay token, permiso denegado" });
+        return res.status(401).json({ msg: 'No hay token, permiso denegado' });
     }
 
+    // 3. Verificar el token
     try {
-        // El token suele venir como "Bearer XXXX...", quitamos la palabra "Bearer "
-        const cifrado = jwt.verify(token.replace('Bearer ', ''), process.env.JWT_SECRET || 'secreto_temporal');
+        // Asegúrate de que JWT_SECRET sea el mismo que usas en el Login
+        // Si usaste variables de entorno en Render, usa process.env.JWT_SECRET
+        // Si no, pon la palabra secreta 'secreto_seguro' temporalmente aquí para probar
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secreto_seguro');
+
+        // 4. Guardar el usuario en la petición para usarlo en las rutas
+        req.usuario = decoded.usuario;
         
-        // 3. Guardamos los datos del usuario dentro de la petición (req)
-        // para que la siguiente función sepa quién es
-        req.usuario = cifrado;
-        
-        next(); // ¡Pase usted!
-    } catch (error) {
-        res.status(401).json({ error: "Token no válido" });
+        next(); // Continuar
+    } catch (err) {
+        console.error("Error en Middleware Auth:", err.message);
+        res.status(401).json({ msg: 'Token no válido' });
     }
 };

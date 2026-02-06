@@ -9,10 +9,10 @@ import {
     ActivityIndicator,
     TextInput,
     Alert,
-    RefreshControl // Importante para deslizar
+    RefreshControl
 } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
-import  api  from '../api/axios';
+import api from '../api/axios';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -20,16 +20,14 @@ import { WalletHeader } from '../components/WalletHeader';
 import { AddMoneyModal } from '../components/AddMoneyModal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+// CORRECCIÓN 1: Adaptar la interfaz a MongoDB
 interface Gasto {
-    id: number;
+    _id: string;          // MongoDB usa _id (guion bajo) y es String
     descripcion: string;
-    monto: string;
+    monto: number;        // En la BD es numérico
     fecha: string;
-    metodo_pago: "efectivo" | "virtual";
-    // categoria: string; // Descomenta si usas categorías
+    tipo: "efectivo" | "virtual"; // En el Modelo lo llamamos 'tipo', no 'metodo_pago'
 }
-
-
 
 export const HomeScreen = () => {
     const { user, logout } = useContext(AuthContext);
@@ -39,13 +37,10 @@ export const HomeScreen = () => {
     const [gastos, setGastos] = useState<Gasto[]>([]);
     const [saldos, setSaldos] = useState({ saldo_efectivo: 0, saldo_virtual: 0 });
 
-    // Estados de carga
-    const [loading, setLoading] = useState(true); // Carga inicial
-    const [refreshing, setRefreshing] = useState(false); // Carga al deslizar
-
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
 
-    // --- FUNCIÓN PRINCIPAL DE CARGA (GASTOS + SALDO) ---
     const cargarDatos = async () => {
         try {
             const [resGastos, resSaldo] = await Promise.all([
@@ -54,6 +49,7 @@ export const HomeScreen = () => {
                 }),
                 api.get('/wallet/saldo')
             ]);
+            // El backend devuelve { count: n, gastos: [...] }
             setGastos(resGastos.data.gastos);
             setSaldos(resSaldo.data);
         } catch (error) {
@@ -61,10 +57,8 @@ export const HomeScreen = () => {
         }
     };
 
-    // 1. Carga inicial y Buscador (Debounce)
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
-            // Solo mostramos loading si es la primera vez o búsqueda, no en refresh
             if (!refreshing) setLoading(true);
             cargarDatos().finally(() => setLoading(false));
         }, 500);
@@ -72,14 +66,12 @@ export const HomeScreen = () => {
         return () => clearTimeout(delayDebounceFn);
     }, [searchTerm]);
 
-    // 2. SOLUCIÓN AL PROBLEMA: Actualizar al volver a la pantalla (Focus)
     useFocusEffect(
         useCallback(() => {
             cargarDatos();
         }, [])
     );
 
-    // 3. Función para "Deslizar para actualizar"
     const onRefresh = async () => {
         setRefreshing(true);
         await cargarDatos();
@@ -89,14 +81,15 @@ export const HomeScreen = () => {
     const handleIngresoConfirmado = async (monto: number, tipo: 'efectivo' | 'virtual') => {
         try {
             await api.post('/wallet/cargar', { monto, tipo });
-            await cargarDatos(); // Actualizar saldo inmediatamente
+            await cargarDatos();
         } catch (error) {
             console.error("Error cargando saldo", error);
             alert("Error al cargar saldo");
         }
     };
 
-    const handleDelete = (id: number, monto: string) => {
+    // CORRECCIÓN 2: Recibimos string (_id) y number (monto)
+    const handleDelete = (id: string, monto: number) => {
         Alert.alert(
             "Eliminar Gasto",
             `¿Borrar este gasto de $${monto}? El dinero volverá a tu saldo.`,
@@ -104,11 +97,11 @@ export const HomeScreen = () => {
                 { text: "Cancelar", style: "cancel" },
                 {
                     text: "Eliminar",
-                    style: "destructive", // En iOS se pone rojo
+                    style: "destructive",
                     onPress: async () => {
                         try {
+                            // Usamos el ID correcto en la URL
                             await api.delete(`/gastos/eliminar/${id}`);
-                            // Recargamos datos para ver el gasto borrado y el saldo actualizado
                             await cargarDatos();
                         } catch (error) {
                             console.error(error);
@@ -121,11 +114,11 @@ export const HomeScreen = () => {
     };
 
     const renderItem = ({ item }: { item: Gasto }) => {
-        const isVirtual = item.metodo_pago === 'virtual';
+        // CORRECCIÓN 3: Usamos 'item.tipo' en lugar de 'metodo_pago'
+        const isVirtual = item.tipo === 'virtual';
 
         return (
             <View style={styles.itemCard}>
-                {/* LADO IZQUIERDO: Descripción y Fecha */}
                 <View style={{ flex: 1 }}>
                     <Text style={styles.itemDesc}>{item.descripcion}</Text>
                     <Text style={styles.itemCat}>{new Date(item.fecha).toLocaleDateString()}</Text>
@@ -143,13 +136,14 @@ export const HomeScreen = () => {
                     </View>
                 </View>
 
-                {/* LADO DERECHO: Precio y Botón Borrar */}
                 <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.itemMonto}>${item.monto}</Text>
+                    {/* Convertimos el número a string fijo con 2 decimales */}
+                    <Text style={styles.itemMonto}>${item.monto.toFixed(2)}</Text>
 
                     <TouchableOpacity
-                        onPress={() => handleDelete(item.id, item.monto)}
-                        style={{ marginTop: 10, padding: 5 }} // Padding para que sea fácil de tocar
+                        // CORRECCIÓN 4: Pasamos _id
+                        onPress={() => handleDelete(item._id, item.monto)}
+                        style={{ marginTop: 10, padding: 5 }}
                     >
                         <MaterialCommunityIcons name="trash-can-outline" size={24} color="#aaa" />
                     </TouchableOpacity>
@@ -160,14 +154,12 @@ export const HomeScreen = () => {
 
     return (
         <View style={styles.container}>
-            {/* Usamos FlatList como contenedor principal para que el scroll funcione en toda la pantalla */}
             <FlatList
                 data={gastos}
-                keyExtractor={(item) => item.id.toString()}
+                // CORRECCIÓN 5: Key extractor usa _id
+                keyExtractor={(item) => item._id}
                 renderItem={renderItem}
-                contentContainerStyle={{ paddingBottom: 100 }} // Espacio extra abajo para el botón flotante
-
-                // CONTROL DE REFRESCO (Pull to Refresh)
+                contentContainerStyle={{ paddingBottom: 100 }}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -176,8 +168,6 @@ export const HomeScreen = () => {
                         tintColor={'#6200ee'}
                     />
                 }
-
-                // CABECERA DE LA LISTA (Todo lo que va antes de los gastos)
                 ListHeaderComponent={
                     <>
                         <View style={styles.header}>
@@ -217,11 +207,9 @@ export const HomeScreen = () => {
                             onChangeText={setSearchTerm}
                         />
 
-                        {/* Si está cargando (y no es refresco manual), mostramos spinner */}
                         {loading && <ActivityIndicator size="large" color="#000" style={{ marginBottom: 20 }} />}
                     </>
                 }
-
                 ListEmptyComponent={
                     !loading ? <Text style={styles.emptyText}>No hay gastos registrados aún.</Text> : null
                 }
@@ -233,7 +221,6 @@ export const HomeScreen = () => {
                 onConfirm={handleIngresoConfirmado}
             />
 
-            {/* Botón Flotante (FAB) */}
             <TouchableOpacity
                 style={styles.fab}
                 onPress={() => navigation.navigate('AgregarGasto')}
@@ -248,7 +235,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#f2f2f2',
-        paddingHorizontal: 20, // Movemos el padding al contenedor, pero cuidado con el FlatList
+        paddingHorizontal: 20,
         paddingTop: 20
     },
     header: {
@@ -336,7 +323,6 @@ const styles = StyleSheet.create({
         borderColor: '#ddd',
         elevation: 2,
     },
-    // Estilos optimizados para botones de navegación
     navButtonPrimary: {
         backgroundColor: '#6200ee',
         padding: 10,
@@ -357,33 +343,29 @@ const styles = StyleSheet.create({
         fontWeight: 'bold'
     },
     badge: {
-        alignSelf: 'flex-start', // Para que no ocupe todo el ancho
+        alignSelf: 'flex-start',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 6,
         marginTop: 6,
         borderWidth: 1,
     },
-
-    // Estilos específicos para Virtual (Azul)
     badgeVirtual: {
-        backgroundColor: '#e3f2fd', // Azul muy clarito
+        backgroundColor: '#e3f2fd',
         borderColor: '#2196f3',
     },
     textVirtual: {
-        color: '#1565c0', // Azul oscuro
+        color: '#1565c0',
         fontSize: 10,
         fontWeight: 'bold',
         textTransform: 'uppercase'
     },
-
-    // Estilos específicos para Efectivo (Verde)
     badgeEfectivo: {
-        backgroundColor: '#e8f5e9', // Verde muy clarito
+        backgroundColor: '#e8f5e9',
         borderColor: '#4caf50',
     },
     textEfectivo: {
-        color: '#2e7d32', // Verde oscuro
+        color: '#2e7d32',
         fontSize: 10,
         fontWeight: 'bold',
         textTransform: 'uppercase'

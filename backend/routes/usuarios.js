@@ -53,48 +53,55 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-        return res.status(400).json({ error: "Faltan datos (email o password)" });
+        return res.status(400).json({ error: "Faltan datos" });
     }
 
     try {
-        // 1. Buscar al usuario por email (Versión MongoDB)
+        // 1. Buscar usuario
         const usuario = await User.findOne({ email });
-
         if (!usuario) {
             return res.status(400).json({ error: "Credenciales inválidas" });
         }
 
-        // 2. Verificar la contraseña
-        const passwordCorrecta = await bcrypt.compare(password, usuario.password);
-
-        if (!passwordCorrecta) {
+        // 2. Verificar contraseña
+        // Nota: Asegúrate de importar bcryptjs al inicio del archivo
+        const isMatch = await bcrypt.compare(password, usuario.password);
+        if (!isMatch) {
             return res.status(400).json({ error: "Credenciales inválidas" });
         }
 
-        // 3. Generar el Token
-        // Nota: En MongoDB el ID se llama "_id", pero Mongoose permite usar ".id" también
-        const token = jwt.sign(
-            { id: usuario._id, nombre: usuario.nombre }, 
-            process.env.JWT_SECRET || 'secreto_temporal',
-            { expiresIn: '30d' }
-        );
-
-        // 4. Responder al Frontend
-        res.json({
-            message: "Login exitoso",
-            token,
+        // 3. Generar Token (CORREGIDO)
+        const payload = {
             usuario: {
-                id: usuario._id,
-                nombre: usuario.nombre,
-                email: usuario.email,
-                saldo_efectivo: usuario.saldo_efectivo,
-                saldo_virtual: usuario.saldo_virtual
+                id: usuario._id
             }
-        });
+        };
+
+        jwt.sign(
+            payload,
+            process.env.JWT_SECRET || 'secreto_temporal', // Debe ser igual al del middleware
+            { expiresIn: '30d' },
+            (err, token) => {
+                if (err) throw err;
+                
+                // 4. Responder
+                res.json({
+                    message: "Login exitoso",
+                    token,
+                    usuario: {
+                        id: usuario._id,
+                        nombre: usuario.nombre,
+                        email: usuario.email,
+                        saldo_efectivo: usuario.saldo_efectivo,
+                        saldo_virtual: usuario.saldo_virtual
+                    }
+                });
+            }
+        );
 
     } catch (error) {
         console.error("Error en login:", error);
-        res.status(500).json({ error: "Error en el servidor al iniciar sesión" });
+        res.status(500).json({ error: "Error de servidor" });
     }
 });
 

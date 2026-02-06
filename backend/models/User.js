@@ -1,14 +1,35 @@
-// backend/models/User.js
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
-    nombre: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    // Aquí definimos los saldos.
-    saldo_efectivo: { type: Number, default: 0 },
-    saldo_virtual: { type: Number, default: 0 },
-    fecha_creacion: { type: Date, default: Date.now }
+    nombre: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    email: {
+        type: String,
+        required: true,
+        unique: true,
+        trim: true,
+        lowercase: true
+    },
+    password: {
+        type: String,
+        required: true
+    },
+    // AQUÍ ESTÁ LA CLAVE: Definir los saldos
+    saldo_efectivo: {
+        type: Number,
+        default: 0
+    },
+    saldo_virtual: {
+        type: Number,
+        default: 0
+    },
+    fecha_registro: {
+        type: Date,
+        default: Date.now
+    }
 });
 
 module.exports = mongoose.model('User', UserSchema);

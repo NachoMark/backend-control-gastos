@@ -1,14 +1,14 @@
-// src/screens/SuscripcionesScreen.tsx
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import  api  from '../api/axios';
+import api from '../api/axios';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+// CORRECCIÓN 1: Interfaz MongoDB
 interface Suscripcion {
-  id: number;
-  nombre_servicio: string;
-  costo: string;
+  _id: string;      // MongoDB usa _id
+  nombre: string;   // BD usa nombre
+  monto: number;    // BD usa monto (Number)
   fecha_cobro: string;
 }
 
@@ -26,10 +26,10 @@ export const SuscripcionesScreen = () => {
 
   useFocusEffect(useCallback(() => { cargar(); }, []));
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string) => {
     Alert.alert(
       "Dar de baja",
-      "¿Seguro que quieres eliminar esta suscripción? No podrás deshacerlo.",
+      "¿Seguro que quieres eliminar esta suscripción?",
       [
         { text: "Cancelar", style: "cancel" },
         {
@@ -38,7 +38,7 @@ export const SuscripcionesScreen = () => {
           onPress: async () => {
             try {
               await api.delete(`/suscripciones/eliminar/${id}`);
-              cargar(); // Recargar lista
+              cargar(); 
             } catch (e) { Alert.alert("Error al eliminar"); }
           }
         }
@@ -46,7 +46,7 @@ export const SuscripcionesScreen = () => {
     );
   };
 
-  const pagar = async (id: number, metodo: string) => {
+  const pagar = async (id: string, metodo: string) => {
     try {
       await api.put(`/suscripciones/pagar/${id}`, { metodo_pago: metodo });
       Alert.alert("Pagado", "Se descontó el saldo y se movió la fecha al próximo mes.");
@@ -59,16 +59,16 @@ export const SuscripcionesScreen = () => {
   const handlePressPagar = (item: Suscripcion) => {
     Alert.alert(
       "Pagar Mes",
-      `¿Pagar $${item.costo} de ${item.nombre_servicio}?`,
+      `¿Pagar $${item.monto} de ${item.nombre}?`,
       [
         { text: "Cancelar", style: "cancel" },
-        { text: "💵 Efectivo", onPress: () => pagar(item.id, 'efectivo') },
-        { text: "💳 Virtual", onPress: () => pagar(item.id, 'virtual') }
+        // Pasamos _id
+        { text: "💵 Efectivo", onPress: () => pagar(item._id, 'efectivo') },
+        { text: "💳 Virtual", onPress: () => pagar(item._id, 'virtual') }
       ]
     );
   };
 
-  // Calcular días restantes
   const getDiasRestantes = (fecha: string) => {
     const hoy = new Date();
     const cobro = new Date(fecha);
@@ -82,22 +82,14 @@ export const SuscripcionesScreen = () => {
 
   const renderItem = ({ item }: { item: Suscripcion }) => (
     <View style={styles.card}>
-      {/* Cabecera de la tarjeta con nombre y acciones */}
       <View style={styles.cardHeader}>
-        <Text style={styles.name}>{item.nombre_servicio}</Text>
+        {/* CORRECCIÓN 2: Usar item.nombre */}
+        <Text style={styles.name}>{item.nombre}</Text>
 
         <View style={styles.actions}>
-          {/* Botón Editar */}
+            {/* CORRECCIÓN 3: Pasar _id al borrar */}
           <TouchableOpacity
-            onPress={() => navigation.navigate('EditSuscripcion', { item })}
-            style={styles.iconBtn}
-          >
-            <MaterialCommunityIcons name="pencil" size={20} color="#666" />
-          </TouchableOpacity>
-
-          {/* Botón Eliminar */}
-          <TouchableOpacity
-            onPress={() => handleDelete(item.id)}
+            onPress={() => handleDelete(item._id)}
             style={[styles.iconBtn, { marginLeft: 10 }]}
           >
             <MaterialCommunityIcons name="trash-can" size={20} color="#e74c3c" />
@@ -110,7 +102,8 @@ export const SuscripcionesScreen = () => {
           Cobro: {new Date(item.fecha_cobro).toLocaleDateString()}
           {'\n'}({getDiasRestantes(item.fecha_cobro)})
         </Text>
-        <Text style={styles.price}>${item.costo}</Text>
+        {/* CORRECCIÓN 4: Usar item.monto */}
+        <Text style={styles.price}>${item.monto}</Text>
       </View>
 
       <TouchableOpacity style={styles.payBtn} onPress={() => handlePressPagar(item)}>
@@ -128,7 +121,8 @@ export const SuscripcionesScreen = () => {
       {loading ? <ActivityIndicator color="#FF9800" /> : (
         <FlatList
           data={items}
-          keyExtractor={i => i.id.toString()}
+          // CORRECCIÓN 5: keyExtractor con _id
+          keyExtractor={i => i._id}
           renderItem={renderItem}
           ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#999' }}>No tienes suscripciones activas</Text>}
         />

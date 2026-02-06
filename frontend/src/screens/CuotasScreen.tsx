@@ -1,36 +1,43 @@
 // src/screens/CuotasScreen.tsx
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import  api  from '../api/axios';
+import api from '../api/axios';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
+// CORRECCIÓN 1: Ajustar la interfaz a lo que devuelve MongoDB
 interface Cuota {
-  id: number;
+  _id: string;          // MongoDB usa _id, no id
   descripcion: string;
-  monto_total: string;
+  monto_total: number;  // En Mongo guardamos Number
   cantidad_cuotas: number;
   cuotas_pagadas: number;
-  valor_cuota: string;
+  monto_cuota: number;  // Tu modelo dice monto_cuota, no valor_cuota
 }
 
 export const CuotasScreen = () => {
-  const navigation = useNavigation<any>(); // any para simplificar tipos de navegación rápida
+  const navigation = useNavigation<any>();
   const [cuotas, setCuotas] = useState<Cuota[]>([]);
   const [loading, setLoading] = useState(true);
 
-const pagar = async (id: number, metodo: string) => {
+  // CORRECCIÓN 2: Usar _id en la función pagar
+  const pagar = async (id: string, metodo: string) => {
     try {
-        await api.put(`/cuotas/pagar/${id}`, { metodo_pago: metodo });
-        Alert.alert("Pagado", "Cuota descontada y agregada al Home");
+        // Asegúrate de que tu ruta en backend sea /api/cuotas/pagar/:id
+        await api.put(`/cuotas/pagar/${id}`, { metodo_pago: metodo }); 
+        Alert.alert("Pagado", "Cuota descontada correctamente");
         cargarCuotas();
     } catch (error: any) {
-        Alert.alert("Error", error.response?.data?.error || "Falló el pago");
+        // Manejo de error mejorado para ver qué pasa
+        const mensaje = error.response?.data?.error || "Error de conexión";
+        Alert.alert("Error", mensaje);
     }
-};
+  };
 
   const cargarCuotas = async () => {
     try {
-      const res = await api.get('/cuotas/listar');
+      // Asegúrate de que tu ruta en backend sea /api/cuotas
+      // Si usaste router.get('/', ...) en cuotas.js, aquí es solo '/cuotas'
+      const res = await api.get('/cuotas'); 
       setCuotas(res.data);
     } catch (error) {
       console.error(error);
@@ -48,38 +55,48 @@ const pagar = async (id: number, metodo: string) => {
   const handlePagarCuota = (item: Cuota) => {
     Alert.alert(
       "Pagar Cuota",
-      `Monto: $${item.valor_cuota}\n¿Cómo deseas pagar?`,
+      `Monto: $${item.monto_cuota.toFixed(2)}\n¿Cómo deseas pagar?`,
       [
         { text: "Cancelar", style: "cancel" },
-        { text: "💵 Efectivo", onPress: () => pagar(item.id, 'efectivo') },
-        { text: "💳 Virtual", onPress: () => pagar(item.id, 'virtual') }
+        // CORRECCIÓN 3: Pasar item._id
+        { text: "💵 Efectivo", onPress: () => pagar(item._id, 'efectivo') },
+        { text: "💳 Virtual", onPress: () => pagar(item._id, 'virtual') }
       ]
     );
-};
+  };
+
   const renderItem = ({ item }: { item: Cuota }) => {
-    // Calculamos porcentaje para una barrita de progreso visual (opcional)
     const progreso = item.cuotas_pagadas / item.cantidad_cuotas;
+    // Calculamos el restante asegurándonos de que sean números
+    const restante = item.monto_total - (item.monto_cuota * item.cuotas_pagadas);
 
     return (
       <View style={styles.card}>
         <View style={styles.header}>
             <Text style={styles.title}>{item.descripcion}</Text>
-            <Text style={styles.monto}>${parseFloat(item.valor_cuota).toFixed(2)} / mes</Text>
+            {/* CORRECCIÓN 4: Usar item.monto_cuota */}
+            <Text style={styles.monto}>${item.monto_cuota.toFixed(2)} / mes</Text>
         </View>
         
-        {/* Barra de progreso */}
         <View style={styles.progressBarBg}>
             <View style={[styles.progressBarFill, { width: `${progreso * 100}%` }]} />
         </View>
         
         <View style={styles.infoRow}>
             <Text style={styles.infoText}>Progreso: {item.cuotas_pagadas}/{item.cantidad_cuotas}</Text>
-            <Text style={styles.infoText}>Restante: ${(parseFloat(item.monto_total) - (parseFloat(item.valor_cuota) * item.cuotas_pagadas)).toFixed(2)}</Text>
+            <Text style={styles.infoText}>Restante: ${restante.toFixed(2)}</Text>
         </View>
 
-        <TouchableOpacity style={styles.payBtn} onPress={() => handlePagarCuota(item)}>
-            <Text style={styles.payBtnText}>Pagar Cuota Mensual</Text>
-        </TouchableOpacity>
+        {/* Solo mostramos el botón si no ha terminado de pagar */}
+        {item.cuotas_pagadas < item.cantidad_cuotas ? (
+            <TouchableOpacity style={styles.payBtn} onPress={() => handlePagarCuota(item)}>
+                <Text style={styles.payBtnText}>Pagar Cuota Mensual</Text>
+            </TouchableOpacity>
+        ) : (
+            <View style={styles.pagadoBadge}>
+                <Text style={styles.pagadoText}>¡PAGADO!</Text>
+            </View>
+        )}
       </View>
     );
   };
@@ -98,7 +115,8 @@ const pagar = async (id: number, metodo: string) => {
       ) : (
         <FlatList
           data={cuotas}
-          keyExtractor={item => item.id.toString()}
+          // CORRECCIÓN 5: keyExtractor con _id
+          keyExtractor={item => item._id} 
           renderItem={renderItem}
           ListEmptyComponent={<Text style={{textAlign: 'center', marginTop: 20, color: '#999'}}>No tienes compras activas.</Text>}
         />
@@ -120,5 +138,7 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
   infoText: { fontSize: 14, color: '#666' },
   payBtn: { backgroundColor: '#6200ee', padding: 12, borderRadius: 8, alignItems: 'center' },
-  payBtnText: { color: 'white', fontWeight: 'bold' }
+  payBtnText: { color: 'white', fontWeight: 'bold' },
+  pagadoBadge: { backgroundColor: '#d4edda', padding: 10, borderRadius: 5, alignItems: 'center' },
+  pagadoText: { color: '#155724', fontWeight: 'bold' }
 });

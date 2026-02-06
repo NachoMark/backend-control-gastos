@@ -1,155 +1,121 @@
-// backend/routes/gastos.js
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../db');
-const auth = require('../middleware/auth'); // Importamos nuestro guardia
+const Gasto = require('../models/Gasto');
+const User = require('../models/User');
+const auth = require('../middleware/auth');
 
-// Ruta: POST /api/gastos/unico
-// Agregamos 'auth' antes de la función para proteger la ruta
+// Ruta: POST /api/gastos/unico (Crear Gasto)
 router.post('/unico', auth, async (req, res) => {
-    const { descripcion, monto,  fecha, metodo_pago } = req.body; // <--- Agregamos metodo_pago
-    const usuario_id = req.usuario.id;
-
-    if (!monto || !fecha || !metodo_pago) {
-        return res.status(400).json({ error: "Datos incompletos" });
+    // Recibimos los datos del celular
+    const { descripcion, monto, fecha, metodo_pago, categoria } = req.body;
+    
+    // Validación básica
+    if (!monto || !metodo_pago) {
+        return res.status(400).json({ error: "Faltan datos (monto o método de pago)" });
     }
 
-    const connection = await pool.getConnection(); // Usamos conexión dedicada para transacción
     try {
-        await connection.beginTransaction(); // Iniciamos operación segura
+        // 1. Buscar al usuario para revisar su saldo
+        const usuario = await User.findById(req.usuario.id);
+        if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
 
-        // 1. Verificar si tiene saldo suficiente
-        const columnaSaldo = metodo_pago === 'efectivo' ? 'saldo_efectivo' : 'saldo_virtual';
-        const [userRows] = await connection.query(`SELECT ${columnaSaldo} as saldo FROM usuarios WHERE id = ?`, [usuario_id]);
+        // 2. Verificar saldo suficiente
+        const saldoActual = (metodo_pago === 'efectivo') ? usuario.saldo_efectivo : usuario.saldo_virtual;
         
-        if (userRows[0].saldo < monto) {
-            await connection.rollback();
+        // Convertimos monto a número por si acaso viene como texto
+        const montoNum = Number(monto);
+
+        if (saldoActual < montoNum) {
             return res.status(400).json({ error: "Saldo insuficiente" });
         }
 
-        // 2. Insertar el gasto
-        await connection.query(
-            'INSERT INTO gastos_unicos (usuario_id, descripcion, monto, fecha,  metodo_pago) VALUES (?,  ?, ?, ?, ?)',
-            [usuario_id, descripcion, monto, fecha, metodo_pago]
-        );
+        // 3. Crear el nuevo gasto (Nota: mapeamos 'metodo_pago' a 'tipo')
+        const nuevoGasto = new Gasto({
+            usuario: req.usuario.id,
+            descripcion,
+            monto: montoNum,
+            fecha: fecha || Date.now(),
+            tipo: metodo_pago, // Guardamos 'efectivo' o 'virtual' en el campo 'tipo'
+            categoria: categoria || 'General'
+        });
 
-        // 3. Descontar del usuario
-        await connection.query(
-            `UPDATE usuarios SET ${columnaSaldo} = ${columnaSaldo} - ? WHERE id = ?`,
-            [monto, usuario_id]
-        );
-
-        await connection.commit(); // Confirmar cambios
-        res.status(201).json({ message: "Gasto registrado y saldo descontado" });
-
-    } catch (error) {
-        await connection.rollback(); // Cancelar todo si falla
-        console.error(error);
-        res.status(500).json({ error: "Error al procesar el gasto" });
-    } finally {
-        connection.release();
-    }
-});
-
-// Esta ruta nos devolverá todos los gastos del usuario autenticado
-// router.get('/listar', auth, async (req, res) => {
-//     const usuario_id = req.usuario.id; // Obtenemos el ID del token
-
-//     try {
-//         // Consultamos los gastos del usuario, ordenados por fecha (del más reciente al más antiguo)
-//         const [rows] = await pool.query(
-//             'SELECT * FROM gastos_unicos WHERE usuario_id = ? ORDER BY fecha DESC',
-//             [usuario_id]
-//         );
-
-//         // Si el usuario no tiene gastos aún, enviamos un array vacío
-//         res.json({
-//             count: rows.length,
-//             gastos: rows
-//         });
-
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).json({ error: "Error al obtener los gastos" });
-//     }
-// });
-
-router.get('/listar', auth, async (req, res) => {
-    const usuario_id = req.usuario.id;
-    // Extraemos filtros de la URL: /listar?search=comida&categoria=Hogar
-    const { search } = req.query; 
-
-    try {
-        let sql = 'SELECT * FROM gastos_unicos WHERE usuario_id = ?';
-        let params = [usuario_id];
-
-        // Si hay búsqueda por texto (Descripción)
-        if (search) {
-            sql += ' AND descripcion LIKE ?';
-            params.push(`%${search}%`); // % permite buscar coincidencias parciales
+        // 4. Descontar el dinero al usuario
+        if (metodo_pago === 'efectivo') {
+            usuario.saldo_efectivo -= montoNum;
+        } else {
+            usuario.saldo_virtual -= montoNum;
         }
 
-        // Si hay filtro por categoría
-        // if (categoria && categoria !== 'Todas') {
-        //     sql += ' AND categoria = ?';
-        //     params.push(categoria);
-        // }
+        // 5. Guardar ambos cambios en la base de datos
+        await nuevoGasto.save();
+        await usuario.save();
 
-        sql += ' ORDER BY fecha DESC';
-
-        const [rows] = await pool.query(sql, params);
-        res.json({ count: rows.length, gastos: rows });
+        res.status(201).json({ message: "Gasto registrado y saldo descontado", gasto: nuevoGasto });
 
     } catch (error) {
-        res.status(500).json({ error: "Error al filtrar gastos" });
+        console.error("Error al crear gasto:", error);
+        res.status(500).json({ error: "Error al procesar el gasto" });
     }
 });
 
-router.delete('/eliminar/:id', auth, async (req, res) => {
-    const { id } = req.params;
-    const usuario_id = req.usuario.id;
-
-    const connection = await pool.getConnection();
-
+// Ruta: GET /api/gastos/listar (Listar con búsqueda)
+router.get('/listar', auth, async (req, res) => {
+    const { search } = req.query;
+    
     try {
-        await connection.beginTransaction();
+        // Filtro base: Solo los gastos de ESTE usuario
+        let filtro = { usuario: req.usuario.id };
 
-        // 1. OBTENER EL GASTO ANTES DE BORRARLO (Para saber cuánto devolver)
-        const [rows] = await connection.query(
-            'SELECT monto, metodo_pago FROM gastos_unicos WHERE id = ? AND usuario_id = ?', 
-            [id, usuario_id]
-        );
+        // Si el usuario escribió algo en el buscador
+        if (search) {
+            // Usamos expresiones regulares ($regex) para buscar coincidencias (como el LIKE %...% de SQL)
+            // 'i' significa que ignora mayúsculas/minúsculas
+            filtro.descripcion = { $regex: search, $options: 'i' };
+        }
 
-        if (rows.length === 0) {
-            await connection.rollback();
+        // Buscamos, ordenamos por fecha (más nuevo primero)
+        const gastos = await Gasto.find(filtro).sort({ fecha: -1 });
+
+        res.json({
+            count: gastos.length,
+            gastos: gastos
+        });
+
+    } catch (error) {
+        console.error("Error al listar gastos:", error);
+        res.status(500).json({ error: "Error al obtener los gastos" });
+    }
+});
+
+// Ruta: DELETE /api/gastos/eliminar/:id (Borrar y devolver dinero)
+router.delete('/eliminar/:id', auth, async (req, res) => {
+    try {
+        // 1. Buscar el gasto y verificar que sea de este usuario
+        const gasto = await Gasto.findOne({ _id: req.params.id, usuario: req.usuario.id });
+        
+        if (!gasto) {
             return res.status(404).json({ error: "Gasto no encontrado" });
         }
 
-        const gasto = rows[0];
+        // 2. Buscar al usuario para devolverle la plata
+        const usuario = await User.findById(req.usuario.id);
 
-        // 2. DEVOLVER EL DINERO A LA BILLETERA CORRESPONDIENTE
-        const columnaSaldo = (gasto.metodo_pago === 'virtual') ? 'saldo_virtual' : 'saldo_efectivo';
+        // 3. Reembolsar el dinero
+        if (gasto.tipo === 'efectivo') {
+            usuario.saldo_efectivo += gasto.monto;
+        } else {
+            usuario.saldo_virtual += gasto.monto;
+        }
 
-        await connection.query(
-            `UPDATE usuarios SET ${columnaSaldo} = ${columnaSaldo} + ? WHERE id = ?`,
-            [gasto.monto, usuario_id]
-        );
+        // 4. Borrar el gasto y guardar al usuario actualizado
+        await Gasto.findByIdAndDelete(req.params.id);
+        await usuario.save();
 
-        // 3. AHORA SÍ, BORRAR EL GASTO
-        await connection.query(
-            'DELETE FROM gastos_unicos WHERE id = ?', 
-            [id]
-        );
-
-        await connection.commit();
         res.json({ message: "Gasto eliminado y dinero reembolsado" });
 
     } catch (error) {
-        await connection.rollback();
-        console.error(error);
+        console.error("Error al eliminar gasto:", error);
         res.status(500).json({ error: "Error al eliminar el gasto" });
-    } finally {
-        connection.release();
     }
 });
 
