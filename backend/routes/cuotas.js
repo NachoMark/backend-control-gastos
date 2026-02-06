@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const Cuota = require('../models/Cuota');
-const User = require('../models/User'); // IMPORTANTE: Necesitamos el modelo de Usuario para restar el saldo
+const User = require('../models/User');
+const Gasto = require('../models/Gasto'); // <--- ¡IMPORTANTE! Agregamos esto
 const auth = require('../middleware/auth');
 
 // OBTENER CUOTAS
-// Frontend llama a: api.get('/cuotas') -> Coincide con api/cuotas/
 router.get('/', auth, async (req, res) => {
     try {
         const cuotas = await Cuota.find({ usuario: req.usuario.id });
@@ -15,17 +15,14 @@ router.get('/', auth, async (req, res) => {
     }
 });
 
-// CREAR NUEVA DEUDA EN CUOTAS
-// Frontend llama a: api.post('/cuotas/crear') -> Agregamos '/crear' aquí
+// CREAR CUOTA
 router.post('/crear', auth, async (req, res) => {
     const { descripcion, monto_total, cantidad_cuotas } = req.body;
     
-    // Validación básica
     if (!monto_total || !cantidad_cuotas) {
-        return res.status(400).json({ error: "Faltan datos del monto o cuotas" });
+        return res.status(400).json({ error: "Faltan datos" });
     }
 
-    // Calculamos cuánto vale cada cuota automáticamente
     const monto_cuota = monto_total / cantidad_cuotas;
 
     try {
@@ -39,48 +36,56 @@ router.post('/crear', auth, async (req, res) => {
         await nuevaCuota.save();
         res.json(nuevaCuota);
     } catch (error) {
-        console.error(error);
         res.status(500).json({ error: "Error al crear cuota" });
     }
 });
 
-// PAGAR UNA CUOTA (Avanzar 1 mes y RESTAR DINERO)
+// PAGAR CUOTA (La magia ocurre aquí ✨)
 router.put('/pagar/:id', auth, async (req, res) => {
-    const { metodo_pago } = req.body; // 'efectivo' o 'virtual'
+    const { metodo_pago } = req.body;
 
     try {
         const cuota = await Cuota.findById(req.params.id);
         const usuario = await User.findById(req.usuario.id);
 
-        if (!cuota) return res.status(404).json({ error: "Cuota no encontrada" });
-        if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
+        if (!cuota || !usuario) return res.status(404).json({ error: "No encontrado" });
 
-        // 1. Verificar si ya terminó de pagar
         if (cuota.cuotas_pagadas >= cuota.cantidad_cuotas) {
-            return res.status(400).json({ error: "Esta deuda ya está pagada" });
+            return res.status(400).json({ error: "Deuda pagada" });
         }
 
-        // 2. Verificar si tiene saldo suficiente para pagar esta cuota
         const saldoActual = metodo_pago === 'efectivo' ? usuario.saldo_efectivo : usuario.saldo_virtual;
         
         if (saldoActual < cuota.monto_cuota) {
-            return res.status(400).json({ error: "No tienes saldo suficiente para pagar esta cuota" });
+            return res.status(400).json({ error: "Saldo insuficiente" });
         }
 
-        // 3. Todo en orden: Restamos dinero y sumamos cuota pagada
+        // 1. Descontar dinero
         if (metodo_pago === 'efectivo') {
             usuario.saldo_efectivo -= cuota.monto_cuota;
         } else {
             usuario.saldo_virtual -= cuota.monto_cuota;
         }
 
+        // 2. Avanzar cuota
         cuota.cuotas_pagadas += 1;
 
-        // 4. Guardamos ambos cambios (Billetera y Cuota)
+        // 3. ¡NUEVO! Crear el registro en el Historial de Gastos
+        const nuevoGasto = new Gasto({
+            usuario: req.usuario.id,
+            descripcion: `Cuota ${cuota.cuotas_pagadas} de ${cuota.cantidad_cuotas}: ${cuota.descripcion}`,
+            monto: cuota.monto_cuota,
+            tipo: metodo_pago,
+            categoria: 'Cuotas', // Categoría especial
+            fecha: Date.now()
+        });
+
+        // 4. Guardar todo
         await usuario.save();
         await cuota.save();
+        await nuevoGasto.save(); // Guardamos el historial
 
-        res.json({ message: "Cuota pagada", cuota, nuevo_saldo: saldoActual - cuota.monto_cuota });
+        res.json({ message: "Cuota pagada y registrada en historial" });
 
     } catch (error) {
         console.error(error);

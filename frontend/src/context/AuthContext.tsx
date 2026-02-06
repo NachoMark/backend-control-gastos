@@ -1,12 +1,11 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import  api  from '../api/axios'; // Usamos nuestra instancia configurada
+import api from '../api/axios';
 import { Alert } from 'react-native';
 
-// 1. Definimos qué forma tienen nuestros datos (TypeScript)
 interface User {
-  id: number;
+  id: string; // Ojo: MongoDB usa IDs tipo String, no number
   nombre: string;
   email: string;
 }
@@ -19,16 +18,13 @@ interface AuthContextProps {
   logout: () => Promise<void>;
 }
 
-// Creamos el contexto vacío
 export const AuthContext = createContext<AuthContextProps>({} as AuthContextProps);
 
-// 2. El Proveedor que envolverá la App
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Para mostrar pantalla de carga al inicio
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Al abrir la App: Verificar si hay token guardado
   useEffect(() => {
     const loadStorageData = async () => {
       try {
@@ -38,49 +34,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (storedToken && storedUser) {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
-          // Importante: Configurar Axios para usar este token en futuras peticiones
-          api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+          
+          // --- CORRECCIÓN AQUÍ ---
+          // Usamos 'x-auth-token' (igual que el backend) y enviamos solo el token
+          api.defaults.headers.common['x-auth-token'] = storedToken; 
         }
       } catch (e) {
         console.error("Error cargando sesión", e);
       } finally {
-        setIsLoading(false); // Terminamos de cargar
+        setIsLoading(false);
       }
     };
     loadStorageData();
   }, []);
 
-  // Función de Login
   const login = async (email: string, password: string) => {
     try {
       const response = await api.post('/usuarios/login', { email, password });
       
       const { token, usuario } = response.data;
 
-      // 1. Actualizar estado
       setToken(token);
       setUser(usuario);
 
-      // 2. Configurar Axios
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // --- CORRECCIÓN AQUÍ TAMBIÉN ---
+      api.defaults.headers.common['x-auth-token'] = token; 
 
-      // 3. Guardar en el celular (Persistencia)
       await SecureStore.setItemAsync('userToken', token);
       await SecureStore.setItemAsync('userData', JSON.stringify(usuario));
 
     } catch (error: any) {
       console.error(error);
-      // Mostramos alerta nativa del celular
       Alert.alert('Error', error.response?.data?.error || 'No se pudo iniciar sesión');
-      throw error; // Lanzamos el error para que la pantalla de Login lo sepa
+      throw error;
     }
   };
 
-  // Función de Logout
   const logout = async () => {
     setUser(null);
     setToken(null);
-    delete api.defaults.headers.common['Authorization'];
+    // Borramos el header correcto
+    delete api.defaults.headers.common['x-auth-token']; 
     await SecureStore.deleteItemAsync('userToken');
     await SecureStore.deleteItemAsync('userData');
   };

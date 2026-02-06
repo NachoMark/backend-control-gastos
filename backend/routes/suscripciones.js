@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const Suscripcion = require('../models/Suscripcion');
-const User = require('../models/User'); // Necesario para restar el dinero
+const User = require('../models/User');
+const Gasto = require('../models/Gasto'); // <--- ¡IMPORTANTE!
 const auth = require('../middleware/auth');
 
-// LISTAR SUSCRIPCIONES
-// Frontend llama a: /api/suscripciones/listar
+// LISTAR
 router.get('/listar', auth, async (req, res) => {
     try {
         const subs = await Suscripcion.find({ usuario: req.usuario.id });
@@ -15,31 +15,26 @@ router.get('/listar', auth, async (req, res) => {
     }
 });
 
-// CREAR SUSCRIPCION
-// Frontend llama a: /api/suscripciones/crear
+// CREAR
 router.post('/crear', auth, async (req, res) => {
-    // Recibimos los nombres que manda el Frontend (nombre_servicio, costo)
-    // y los guardamos con los nombres de MongoDB (nombre, monto)
     const { nombre_servicio, costo, fecha_cobro } = req.body;
-    
     try {
         const nuevaSub = new Suscripcion({
             usuario: req.usuario.id,
-            nombre: nombre_servicio, // Mapeo: nombre_servicio -> nombre
-            monto: parseFloat(costo), // Mapeo: costo -> monto
+            nombre: nombre_servicio,
+            monto: parseFloat(costo),
             fecha_cobro
         });
         await nuevaSub.save();
         res.json(nuevaSub);
     } catch (error) {
-        console.error(error);
         res.status(500).json({ error: "Error al crear suscripción" });
     }
 });
 
-// PAGAR SUSCRIPCION (La lógica que faltaba) 🧠
+// PAGAR MES (La magia ocurre aquí ✨)
 router.put('/pagar/:id', auth, async (req, res) => {
-    const { metodo_pago } = req.body; // 'efectivo' o 'virtual'
+    const { metodo_pago } = req.body;
 
     try {
         const sub = await Suscripcion.findById(req.params.id);
@@ -47,29 +42,39 @@ router.put('/pagar/:id', auth, async (req, res) => {
 
         if (!sub || !usuario) return res.status(404).json({ error: "No encontrado" });
 
-        // 1. Verificar saldo
         const saldoActual = metodo_pago === 'efectivo' ? usuario.saldo_efectivo : usuario.saldo_virtual;
         if (saldoActual < sub.monto) {
-            return res.status(400).json({ error: "Saldo insuficiente para pagar la suscripción" });
+            return res.status(400).json({ error: "Saldo insuficiente" });
         }
 
-        // 2. Descontar dinero
+        // 1. Descontar dinero
         if (metodo_pago === 'efectivo') {
             usuario.saldo_efectivo -= sub.monto;
         } else {
             usuario.saldo_virtual -= sub.monto;
         }
 
-        // 3. Avanzar la fecha 1 mes
+        // 2. Avanzar fecha
         const fechaActual = new Date(sub.fecha_cobro);
         fechaActual.setMonth(fechaActual.getMonth() + 1);
         sub.fecha_cobro = fechaActual;
 
-        // 4. Guardar cambios
+        // 3. ¡NUEVO! Crear el registro en el Historial de Gastos
+        const nuevoGasto = new Gasto({
+            usuario: req.usuario.id,
+            descripcion: `Suscripción: ${sub.nombre}`,
+            monto: sub.monto,
+            tipo: metodo_pago,
+            categoria: 'Suscripciones',
+            fecha: Date.now()
+        });
+
+        // 4. Guardar todo
         await usuario.save();
         await sub.save();
+        await nuevoGasto.save();
 
-        res.json({ message: "Pago registrado y fecha actualizada", nueva_fecha: sub.fecha_cobro });
+        res.json({ message: "Pago registrado en historial y fecha actualizada" });
 
     } catch (error) {
         console.error(error);
@@ -77,7 +82,7 @@ router.put('/pagar/:id', auth, async (req, res) => {
     }
 });
 
-// BORRAR SUSCRIPCION
+// ELIMINAR
 router.delete('/eliminar/:id', auth, async (req, res) => {
     try {
         await Suscripcion.findByIdAndDelete(req.params.id);
