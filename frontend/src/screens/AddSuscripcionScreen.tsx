@@ -9,7 +9,7 @@ import {
   Alert, 
   Platform 
 } from 'react-native';
-import { api } from '../api/axios';
+import  api  from '../api/axios';
 import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker'; // <--- Importar
 

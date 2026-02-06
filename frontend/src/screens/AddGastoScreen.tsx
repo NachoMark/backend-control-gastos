@@ -9,7 +9,7 @@ import {
     Alert,
     ActivityIndicator
 } from 'react-native';
-import { api } from '../api/axios';
+import  api  from '../api/axios';
 import { useNavigation } from '@react-navigation/native';
 
 export const AddGastoScreen = () => {

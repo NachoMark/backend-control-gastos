@@ -12,7 +12,7 @@ import {
     RefreshControl // Importante para deslizar
 } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
-import { api } from '../api/axios';
+import  api  from '../api/axios';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';

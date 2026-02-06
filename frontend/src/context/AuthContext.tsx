@@ -1,7 +1,7 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { api } from '../api/axios'; // Usamos nuestra instancia configurada
+import  api  from '../api/axios'; // Usamos nuestra instancia configurada
 import { Alert } from 'react-native';
 
 // 1. Definimos qué forma tienen nuestros datos (TypeScript)

@@ -1,7 +1,7 @@
 // src/screens/CuotasScreen.tsx
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { api } from '../api/axios';
+import  api  from '../api/axios';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 interface Cuota {

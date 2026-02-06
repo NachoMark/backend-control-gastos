@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "MiBilletera",
+    "slug": "mi-billetera-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -33,7 +33,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "9eca7332-0c38-45d9-9986-51ecad3bb909"
+        "projectId": "7adb2b7c-cded-4a03-b078-71a98878b1ea"
       }
     }
   }

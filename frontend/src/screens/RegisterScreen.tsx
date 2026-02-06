@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
   ScrollView // Usamos ScrollView por si el teclado tapa los campos
 } from 'react-native';
-import { api } from '../api/axios';
+// import { api } from '../api/axios';
+import api from "../api/axios"
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
