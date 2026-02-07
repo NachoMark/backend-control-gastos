@@ -6,10 +6,10 @@ const CuotaSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    descripcion: { type: String, required: true }, // Ej: TV 50 pulgadas
+    descripcion: { type: String, required: true },
     monto_total: { type: Number, required: true },
     cantidad_cuotas: { type: Number, required: true },
-    monto_cuota: { type: Number, required: true }, // Cuánto pagas por mes
+    monto_cuota: { type: Number, required: true },
     cuotas_pagadas: { type: Number, default: 0 },
     fecha_inicio: { type: Date, default: Date.now }
 });

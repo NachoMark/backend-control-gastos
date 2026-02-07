@@ -34,8 +34,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (storedToken && storedUser) {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
-          
-          // --- CORRECCIÓN AQUÍ ---
+
           // Usamos 'x-auth-token' (igual que el backend) y enviamos solo el token
           api.defaults.headers.common['x-auth-token'] = storedToken; 
         }
@@ -57,7 +56,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(token);
       setUser(usuario);
 
-      // --- CORRECCIÓN AQUÍ TAMBIÉN ---
       api.defaults.headers.common['x-auth-token'] = token; 
 
       await SecureStore.setItemAsync('userToken', token);

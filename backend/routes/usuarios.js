@@ -1,9 +1,9 @@
-// backend/routes/usuarios.js
+
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require("jsonwebtoken");
-const User = require('../models/User'); // <--- CAMBIO IMPORTANTE: Importamos el Modelo, no la DB
+const User = require('../models/User'); 
 
 // Ruta: POST /api/usuarios/registro
 router.post('/registro', async (req, res) => {
@@ -17,7 +17,6 @@ router.post('/registro', async (req, res) => {
 
     try {
         // 3. Verificar si el usuario ya existe (Versión MongoDB)
-        // Ya no usamos "SELECT * FROM...", usamos .findOne()
         const usuarioExistente = await User.findOne({ email });
 
         if (usuarioExistente) {
@@ -64,13 +63,13 @@ router.post('/login', async (req, res) => {
         }
 
         // 2. Verificar contraseña
-        // Nota: Asegúrate de importar bcryptjs al inicio del archivo
+
         const isMatch = await bcrypt.compare(password, usuario.password);
         if (!isMatch) {
             return res.status(400).json({ error: "Credenciales inválidas" });
         }
 
-        // 3. Generar Token (CORREGIDO)
+        // 3. Generar Token
         const payload = {
             usuario: {
                 id: usuario._id

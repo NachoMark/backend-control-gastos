@@ -1,4 +1,3 @@
-// src/screens/AddCuotaScreen.tsx
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import  api  from '../api/axios';

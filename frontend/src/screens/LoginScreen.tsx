@@ -1,4 +1,3 @@
-// src/screens/LoginScreen.tsx
 import React, { useState, useContext } from 'react';
 import {
   View,
@@ -53,7 +52,7 @@ export const LoginScreen = () => {
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
-          autoCapitalize="none" // Importante: evita que la primera letra sea mayúscula
+          autoCapitalize="none" // Evita que la primera letra sea mayúscula
         />
 
         {/* Input Password */}
@@ -79,10 +78,10 @@ export const LoginScreen = () => {
           )}
         </TouchableOpacity>
 
-        {/* Botón simple para registro (solo visual por ahora) */}
+        {/* Botón simple para registro */}
         <TouchableOpacity
           style={{ marginTop: 20 }}
-          onPress={() => navigation.navigate('Registro')} // <--- ¡AQUÍ ESTÁ LA MAGIA!
+          onPress={() => navigation.navigate('Registro')} 
         >
           <Text style={styles.linkText}>¿No tienes cuenta? Regístrate</Text>
         </TouchableOpacity>

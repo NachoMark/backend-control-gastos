@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Cuota = require('../models/Cuota');
 const User = require('../models/User');
-const Gasto = require('../models/Gasto'); // <--- ¡IMPORTANTE! Agregamos esto
+const Gasto = require('../models/Gasto'); 
 const auth = require('../middleware/auth');
 
 // OBTENER CUOTAS
@@ -18,7 +18,7 @@ router.get('/', auth, async (req, res) => {
 // CREAR CUOTA
 router.post('/crear', auth, async (req, res) => {
     const { descripcion, monto_total, cantidad_cuotas } = req.body;
-    
+
     if (!monto_total || !cantidad_cuotas) {
         return res.status(400).json({ error: "Faltan datos" });
     }
@@ -40,7 +40,7 @@ router.post('/crear', auth, async (req, res) => {
     }
 });
 
-// PAGAR CUOTA (La magia ocurre aquí ✨)
+// PAGAR CUOTA 
 router.put('/pagar/:id', auth, async (req, res) => {
     const { metodo_pago } = req.body;
 
@@ -55,7 +55,7 @@ router.put('/pagar/:id', auth, async (req, res) => {
         }
 
         const saldoActual = metodo_pago === 'efectivo' ? usuario.saldo_efectivo : usuario.saldo_virtual;
-        
+
         if (saldoActual < cuota.monto_cuota) {
             return res.status(400).json({ error: "Saldo insuficiente" });
         }
@@ -70,13 +70,13 @@ router.put('/pagar/:id', auth, async (req, res) => {
         // 2. Avanzar cuota
         cuota.cuotas_pagadas += 1;
 
-        // 3. ¡NUEVO! Crear el registro en el Historial de Gastos
+        // 3.Crear el registro en el Historial de Gastos
         const nuevoGasto = new Gasto({
             usuario: req.usuario.id,
             descripcion: `Cuota ${cuota.cuotas_pagadas} de ${cuota.cantidad_cuotas}: ${cuota.descripcion}`,
             monto: cuota.monto_cuota,
             tipo: metodo_pago,
-            categoria: 'Cuotas', // Categoría especial
+            categoria: 'Cuotas', 
             fecha: Date.now()
         });
 
@@ -92,5 +92,43 @@ router.put('/pagar/:id', auth, async (req, res) => {
         res.status(500).json({ error: "Error al pagar cuota" });
     }
 });
+// EDITAR UNA CUOTA
+router.put('/editar/:id', auth, async (req, res) => {
+    const { descripcion, monto_total, cantidad_cuotas } = req.body;
 
+    // Validamos que vengan los datos
+    if (!descripcion || !monto_total || !cantidad_cuotas) {
+        return res.status(400).json({ error: "Faltan datos" });
+    }
+
+    try {
+        // 1. Recalculamos el valor de la cuota mensual
+        const nuevo_monto_cuota = Number(monto_total) / Number(cantidad_cuotas);
+
+        // 2. Actualizamos en la base de datos
+        const cuotaActualizada = await Cuota.findByIdAndUpdate(req.params.id, {
+            descripcion,
+            monto_total,
+            cantidad_cuotas,
+            monto_cuota: nuevo_monto_cuota
+        }, { new: true }); // {new: true} devuelve el objeto ya cambiado
+
+        res.json(cuotaActualizada);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Error al editar la cuota" });
+    }
+});
+
+// ELIMINAR UNA CUOTA (Borrón y cuenta nueva)
+router.delete('/eliminar/:id', auth, async (req, res) => {
+    try {
+        const cuota = await Cuota.findByIdAndDelete(req.params.id);
+        if (!cuota) return res.status(404).json({ error: "Cuota no encontrada" });
+
+        res.json({ message: "Cuota eliminada correctamente" });
+    } catch (error) {
+        res.status(500).json({ error: "Error al eliminar la cuota" });
+    }
+});
 module.exports = router;

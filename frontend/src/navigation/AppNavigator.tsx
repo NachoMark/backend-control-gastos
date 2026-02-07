@@ -8,7 +8,7 @@ import { AuthContext } from '../context/AuthContext';
 // Pantallas
 import { LoginScreen } from '../screens/LoginScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
-import { LockScreen } from '../screens/LockScreen'; // Pantalla guardiana
+import { LockScreen } from '../screens/LockScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { AddGastoScreen } from '../screens/AddGastoScreen';
 import { CuotasScreen } from '../screens/CuotasScreen';
@@ -16,6 +16,7 @@ import { AddCuotaScreen } from '../screens/AddCuotaScreen';
 import { AddSuscripcionScreen } from '../screens/AddSuscripcionScreen';
 import { SuscripcionesScreen } from '../screens/SuscripcionesScreen';
 import { EditSuscripcionScreen } from '../screens/EditSuscripcionScreen';
+import { EditCuotaScreen } from '../screens/EditCuotaScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -25,8 +26,9 @@ export type RootStackParamList = {
   MisSuscripciones: undefined;
   AddSuscripcion: undefined;
   AddCuota: undefined;
+  EditCuota: undefined;
   AgregarGasto: undefined;
-  EditSuscripcion: {item: any}
+  EditSuscripcion: { item: any }
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -83,6 +85,7 @@ export const AppNavigator = () => {
         <Stack.Screen name="MisSuscripciones" component={SuscripcionesScreen} options={{ title: 'Mis Suscripciones' }} />
         <Stack.Screen name="AddSuscripcion" component={AddSuscripcionScreen} options={{ title: 'Agregar Servicio' }} />
         <Stack.Screen name="EditSuscripcion" component={EditSuscripcionScreen} options={{ title: 'Editar' }} />
+        <Stack.Screen name="EditCuota" component={EditCuotaScreen} options={{ title: "Editar" }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

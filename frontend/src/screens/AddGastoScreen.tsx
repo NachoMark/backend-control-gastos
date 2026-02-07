@@ -1,4 +1,3 @@
-// src/screens/AddGastoScreen.tsx
 import React, { useState } from 'react';
 import {
     View,
@@ -17,7 +16,6 @@ export const AddGastoScreen = () => {
 
     const [descripcion, setDescripcion] = useState('');
     const [monto, setMonto] = useState('');
-    // const [categoria, setCategoria] = useState('');
     const [loading, setLoading] = useState(false);
 
     const [metodo, setMetodo] = useState<'efectivo' | 'virtual'>('efectivo');
@@ -35,7 +33,6 @@ export const AddGastoScreen = () => {
             await api.post('/gastos/unico', {
                 descripcion,
                 monto: parseFloat(monto), // Convertir texto a número
-                // categoria,
                 fecha: new Date().toISOString().split('T')[0], // Formato YYYY-MM-DD (Hoy),
                 metodo_pago: metodo // 'efectivo' o 'virtual'
             });
@@ -73,14 +70,6 @@ export const AddGastoScreen = () => {
                     onChangeText={setMonto}
                     keyboardType="numeric" // Teclado numérico
                 />
-
-                {/* <Text style={styles.label}>Categoría</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Ej: Comida, Transporte"
-                    value={categoria}
-                    onChangeText={setCategoria}
-                /> */}
 
                 <View style={{ flexDirection: 'row', marginBottom: 15 }}>
                     <TouchableOpacity

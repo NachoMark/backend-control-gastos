@@ -1,4 +1,3 @@
-// src/components/AddMoneyModal.tsx
 import React, { useState } from 'react';
 import { 
   Modal, 

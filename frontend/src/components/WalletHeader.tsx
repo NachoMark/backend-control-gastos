@@ -12,14 +12,14 @@ export const WalletHeader = ({ efectivo, virtual, onAddMoney }: Props) => {
     <View style={styles.container}>
         <View style={styles.card}>
             <Text style={styles.label}>💵 Efectivo</Text>
-            <Text style={styles.amount}>${efectivo || '0'}</Text>
+            <Text style={styles.amount}>${efectivo.toFixed(2) || '0.00'}</Text>
         </View>
         
         <View style={styles.separator} />
 
         <View style={styles.card}>
             <Text style={styles.label}>💳 Virtual</Text>
-            <Text style={styles.amount}>${virtual || '0'}</Text>
+            <Text style={styles.amount}>${virtual.toFixed(2) || '0.00'}</Text>
         </View>
 
         <TouchableOpacity onPress={onAddMoney} style={styles.btn}>

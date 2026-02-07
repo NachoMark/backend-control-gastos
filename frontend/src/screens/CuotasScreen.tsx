@@ -1,17 +1,16 @@
-// src/screens/CuotasScreen.tsx
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import api from '../api/axios';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-// CORRECCIÓN 1: Ajustar la interfaz a lo que devuelve MongoDB
 interface Cuota {
-  _id: string;          // MongoDB usa _id, no id
+  _id: string;
   descripcion: string;
-  monto_total: number;  // En Mongo guardamos Number
+  monto_total: number;
   cantidad_cuotas: number;
   cuotas_pagadas: number;
-  monto_cuota: number;  // Tu modelo dice monto_cuota, no valor_cuota
+  monto_cuota: number;
 }
 
 export const CuotasScreen = () => {
@@ -19,25 +18,9 @@ export const CuotasScreen = () => {
   const [cuotas, setCuotas] = useState<Cuota[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // CORRECCIÓN 2: Usar _id en la función pagar
-  const pagar = async (id: string, metodo: string) => {
-    try {
-        // Asegúrate de que tu ruta en backend sea /api/cuotas/pagar/:id
-        await api.put(`/cuotas/pagar/${id}`, { metodo_pago: metodo }); 
-        Alert.alert("Pagado", "Cuota descontada correctamente");
-        cargarCuotas();
-    } catch (error: any) {
-        // Manejo de error mejorado para ver qué pasa
-        const mensaje = error.response?.data?.error || "Error de conexión";
-        Alert.alert("Error", mensaje);
-    }
-  };
-
   const cargarCuotas = async () => {
     try {
-      // Asegúrate de que tu ruta en backend sea /api/cuotas
-      // Si usaste router.get('/', ...) en cuotas.js, aquí es solo '/cuotas'
-      const res = await api.get('/cuotas'); 
+      const res = await api.get('/cuotas');
       setCuotas(res.data);
     } catch (error) {
       console.error(error);
@@ -52,13 +35,46 @@ export const CuotasScreen = () => {
     }, [])
   );
 
+  // --- FUNCIÓN PARA BORRAR ---
+  const handleDelete = (id: string) => {
+    Alert.alert(
+      "Eliminar Deuda",
+      "¿Estás seguro? Se borrará todo el historial de esta cuota.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.delete(`/cuotas/eliminar/${id}`);
+              cargarCuotas(); // Recargar lista
+            } catch (error) {
+              Alert.alert("Error", "No se pudo eliminar");
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const pagar = async (id: string, metodo: string) => {
+    try {
+        await api.put(`/cuotas/pagar/${id}`, { metodo_pago: metodo }); 
+        Alert.alert("Pagado", "Cuota descontada correctamente");
+        cargarCuotas();
+    } catch (error: any) {
+        const mensaje = error.response?.data?.error || "Error de conexión";
+        Alert.alert("Error", mensaje);
+    }
+  };
+
   const handlePagarCuota = (item: Cuota) => {
     Alert.alert(
       "Pagar Cuota",
       `Monto: $${item.monto_cuota.toFixed(2)}\n¿Cómo deseas pagar?`,
       [
         { text: "Cancelar", style: "cancel" },
-        // CORRECCIÓN 3: Pasar item._id
         { text: "💵 Efectivo", onPress: () => pagar(item._id, 'efectivo') },
         { text: "💳 Virtual", onPress: () => pagar(item._id, 'virtual') }
       ]
@@ -67,15 +83,33 @@ export const CuotasScreen = () => {
 
   const renderItem = ({ item }: { item: Cuota }) => {
     const progreso = item.cuotas_pagadas / item.cantidad_cuotas;
-    // Calculamos el restante asegurándonos de que sean números
     const restante = item.monto_total - (item.monto_cuota * item.cuotas_pagadas);
 
     return (
       <View style={styles.card}>
+        {/* CABECERA: Título y Botones de Editar/Borrar */}
         <View style={styles.header}>
-            <Text style={styles.title}>{item.descripcion}</Text>
-            {/* CORRECCIÓN 4: Usar item.monto_cuota */}
-            <Text style={styles.monto}>${item.monto_cuota.toFixed(2)} / mes</Text>
+            <View style={{flex: 1}}>
+                <Text style={styles.title}>{item.descripcion}</Text>
+                <Text style={styles.monto}>${item.monto_cuota.toFixed(2)} / mes</Text>
+            </View>
+
+            {/* BOTONES DE ACCIÓN (Lápiz y Basura) */}
+            <View style={{flexDirection: 'row'}}>
+                <TouchableOpacity 
+                    onPress={() => navigation.navigate('EditCuota', { item })} 
+                    style={styles.iconBtn}
+                >
+                    <MaterialCommunityIcons name="pencil" size={22} color="#666" />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    onPress={() => handleDelete(item._id)} 
+                    style={[styles.iconBtn, { marginLeft: 10 }]}
+                >
+                    <MaterialCommunityIcons name="trash-can" size={22} color="#e74c3c" />
+                </TouchableOpacity>
+            </View>
         </View>
         
         <View style={styles.progressBarBg}>
@@ -87,7 +121,6 @@ export const CuotasScreen = () => {
             <Text style={styles.infoText}>Restante: ${restante.toFixed(2)}</Text>
         </View>
 
-        {/* Solo mostramos el botón si no ha terminado de pagar */}
         {item.cuotas_pagadas < item.cantidad_cuotas ? (
             <TouchableOpacity style={styles.payBtn} onPress={() => handlePagarCuota(item)}>
                 <Text style={styles.payBtnText}>Pagar Cuota Mensual</Text>
@@ -115,7 +148,6 @@ export const CuotasScreen = () => {
       ) : (
         <FlatList
           data={cuotas}
-          // CORRECCIÓN 5: keyExtractor con _id
           keyExtractor={item => item._id} 
           renderItem={renderItem}
           ListEmptyComponent={<Text style={{textAlign: 'center', marginTop: 20, color: '#999'}}>No tienes compras activas.</Text>}
@@ -130,7 +162,10 @@ const styles = StyleSheet.create({
   addBtn: { backgroundColor: '#000', padding: 15, borderRadius: 8, marginBottom: 20, alignItems: 'center' },
   addBtnText: { color: 'white', fontWeight: 'bold' },
   card: { backgroundColor: 'white', padding: 15, borderRadius: 12, marginBottom: 15, elevation: 2 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  
+  // Header ajustado para que entren los iconos
+  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, alignItems: 'flex-start' },
+  
   title: { fontSize: 18, fontWeight: 'bold', color: '#333' },
   monto: { fontSize: 16, fontWeight: '600', color: '#28a745' },
   progressBarBg: { height: 10, backgroundColor: '#e0e0e0', borderRadius: 5, marginBottom: 10, overflow: 'hidden' },
@@ -140,5 +175,6 @@ const styles = StyleSheet.create({
   payBtn: { backgroundColor: '#6200ee', padding: 12, borderRadius: 8, alignItems: 'center' },
   payBtnText: { color: 'white', fontWeight: 'bold' },
   pagadoBadge: { backgroundColor: '#d4edda', padding: 10, borderRadius: 5, alignItems: 'center' },
-  pagadoText: { color: '#155724', fontWeight: 'bold' }
+  pagadoText: { color: '#155724', fontWeight: 'bold' },
+  iconBtn: { padding: 5 }
 });

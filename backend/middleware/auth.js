@@ -11,15 +11,12 @@ module.exports = function(req, res, next) {
 
     // 3. Verificar el token
     try {
-        // Asegúrate de que JWT_SECRET sea el mismo que usas en el Login
-        // Si usaste variables de entorno en Render, usa process.env.JWT_SECRET
-        // Si no, pon la palabra secreta 'secreto_seguro' temporalmente aquí para probar
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secreto_seguro');
 
         // 4. Guardar el usuario en la petición para usarlo en las rutas
         req.usuario = decoded.usuario;
         
-        next(); // Continuar
+        next(); 
     } catch (err) {
         console.error("Error en Middleware Auth:", err.message);
         res.status(401).json({ msg: 'Token no válido' });

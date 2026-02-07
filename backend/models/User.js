@@ -17,7 +17,6 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    // AQUÍ ESTÁ LA CLAVE: Definir los saldos
     saldo_efectivo: {
         type: Number,
         default: 0

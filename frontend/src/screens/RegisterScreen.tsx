@@ -1,4 +1,4 @@
-// src/screens/RegisterScreen.tsx
+
 import React, { useState } from 'react';
 import {
   View,
@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   ScrollView // Usamos ScrollView por si el teclado tapa los campos
 } from 'react-native';
-// import { api } from '../api/axios';
+
 import api from "../api/axios"
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -106,7 +106,7 @@ export const RegisterScreen = () => {
           onChangeText={setEmail}
         />
 
-        {/* Confirmar Email (NUEVO CAMPO) */}
+        {/* Confirmar Email*/}
         <Text style={styles.label}>Confirmar Correo</Text>
         <TextInput
           style={styles.input}

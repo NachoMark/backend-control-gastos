@@ -1,4 +1,3 @@
-// src/screens/AddSuscripcionScreen.tsx
 import React, { useState } from 'react';
 import { 
   View, 
@@ -11,7 +10,7 @@ import {
 } from 'react-native';
 import  api  from '../api/axios';
 import { useNavigation } from '@react-navigation/native';
-import DateTimePicker from '@react-native-community/datetimepicker'; // <--- Importar
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export const AddSuscripcionScreen = () => {
   const navigation = useNavigation();
@@ -99,7 +98,7 @@ export const AddSuscripcionScreen = () => {
                 mode="date"
                 display="default"
                 onChange={onChange}
-                minimumDate={new Date()} // Opcional: No permitir fechas pasadas
+                minimumDate={new Date()} // No permitir fechas pasadas
             />
         )}
 

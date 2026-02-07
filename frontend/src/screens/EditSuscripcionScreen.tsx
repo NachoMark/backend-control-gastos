@@ -1,4 +1,3 @@
-// src/screens/EditSuscripcionScreen.tsx
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import  api  from '../api/axios';

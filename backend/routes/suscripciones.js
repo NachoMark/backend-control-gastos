@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Suscripcion = require('../models/Suscripcion');
 const User = require('../models/User');
-const Gasto = require('../models/Gasto'); // <--- ¡IMPORTANTE!
+const Gasto = require('../models/Gasto'); 
 const auth = require('../middleware/auth');
 
 // LISTAR
@@ -32,7 +32,7 @@ router.post('/crear', auth, async (req, res) => {
     }
 });
 
-// PAGAR MES (La magia ocurre aquí ✨)
+// PAGAR MES 
 router.put('/pagar/:id', auth, async (req, res) => {
     const { metodo_pago } = req.body;
 
@@ -59,7 +59,7 @@ router.put('/pagar/:id', auth, async (req, res) => {
         fechaActual.setMonth(fechaActual.getMonth() + 1);
         sub.fecha_cobro = fechaActual;
 
-        // 3. ¡NUEVO! Crear el registro en el Historial de Gastos
+        // 3. Crear el registro en el Historial de Gastos
         const nuevoGasto = new Gasto({
             usuario: req.usuario.id,
             descripcion: `Suscripción: ${sub.nombre}`,
