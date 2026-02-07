@@ -3,7 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndi
 import api from '../api/axios';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
+import { formatCurrency } from '../utils/format';
 // CORRECCIÓN 1: Interfaz MongoDB
 interface Suscripcion {
   _id: string;      // MongoDB usa _id
@@ -103,7 +103,7 @@ export const SuscripcionesScreen = () => {
           {'\n'}({getDiasRestantes(item.fecha_cobro)})
         </Text>
         {/* CORRECCIÓN 4: Usar item.monto */}
-        <Text style={styles.price}>${item.monto}</Text>
+        <Text style={styles.price}>{formatCurrency(item.monto)}</Text>
       </View>
 
       <TouchableOpacity style={styles.payBtn} onPress={() => handlePressPagar(item)}>

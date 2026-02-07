@@ -51,4 +51,30 @@ router.get('/saldo', auth, async (req, res) => {
         res.status(500).json({ error: "Error de servidor al obtener saldo" });
     }
 });
+
+router.put('/actualizar', auth, async (req, res) => {
+    const { nuevo_efectivo, nuevo_virtual } = req.body;
+
+    try {
+        const usuario = await User.findById(req.usuario.id);
+        if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
+
+        // Solo actualizamos si nos envían un valor (puede ser 0)
+        // Usamos !== undefined porque el valor podría ser 0
+        if (nuevo_efectivo !== undefined) {
+            usuario.saldo_efectivo = Number(nuevo_efectivo);
+        }
+        
+        if (nuevo_virtual !== undefined) {
+            usuario.saldo_virtual = Number(nuevo_virtual);
+        }
+
+        await usuario.save();
+        res.json({ message: "Saldo corregido exitosamente", saldo: usuario });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Error al actualizar saldo" });
+    }
+});
 module.exports = router;

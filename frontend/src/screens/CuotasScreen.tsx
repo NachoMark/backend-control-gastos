@@ -3,7 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndi
 import api from '../api/axios';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
+import { formatCurrency } from '../utils/format';
 interface Cuota {
   _id: string;
   descripcion: string;
@@ -91,7 +91,7 @@ export const CuotasScreen = () => {
         <View style={styles.header}>
             <View style={{flex: 1}}>
                 <Text style={styles.title}>{item.descripcion}</Text>
-                <Text style={styles.monto}>${item.monto_cuota.toFixed(2)} / mes</Text>
+                <Text style={styles.monto}>{formatCurrency(item.monto_cuota)} / mes</Text>
             </View>
 
             {/* BOTONES DE ACCIÓN (Lápiz y Basura) */}

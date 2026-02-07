@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-
+import { formatCurrency } from '../utils/format';
 interface Props {
     efectivo: number;
     virtual: number;
@@ -12,14 +12,14 @@ export const WalletHeader = ({ efectivo, virtual, onAddMoney }: Props) => {
     <View style={styles.container}>
         <View style={styles.card}>
             <Text style={styles.label}>💵 Efectivo</Text>
-            <Text style={styles.amount}>${efectivo.toFixed(2) || '0.00'}</Text>
+            <Text style={styles.amount}>{formatCurrency(efectivo)}</Text>
         </View>
         
         <View style={styles.separator} />
 
         <View style={styles.card}>
             <Text style={styles.label}>💳 Virtual</Text>
-            <Text style={styles.amount}>${virtual.toFixed(2) || '0.00'}</Text>
+            <Text style={styles.amount}>{formatCurrency(virtual)}</Text>
         </View>
 
         <TouchableOpacity onPress={onAddMoney} style={styles.btn}>

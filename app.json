@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "a712afc6-c49c-48ef-a072-d1b9b134f206"
+      }
+    },
+    "android": {
+      "package": "com.igmarki.gastosapp"
+    }
+  }
+}

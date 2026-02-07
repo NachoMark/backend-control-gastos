@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// src/components/AddMoneyModal.tsx
+import React, { useState, useEffect } from 'react';
 import { 
   Modal, 
   View, 
@@ -12,24 +13,56 @@ import {
 interface Props {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (monto: number, tipo: 'efectivo' | 'virtual') => Promise<void>;
+  onConfirm: (nuevoEfectivo: string, nuevoVirtual: string) => Promise<void>;
+  saldoActual: { efectivo: number; virtual: number };
 }
 
-export const AddMoneyModal = ({ visible, onClose, onConfirm }: Props) => {
-  const [monto, setMonto] = useState('');
-  const [tipo, setTipo] = useState<'efectivo' | 'virtual'>('efectivo');
+export const AddMoneyModal = ({ visible, onClose, onConfirm, saldoActual }: Props) => {
+  // Guardamos los valores como TEXTO (string) para manejar los puntos
+  const [efectivo, setEfectivo] = useState('');
+  const [virtual, setVirtual] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // --- HERRAMIENTAS DE FORMATO ---
+
+  // 1. Pone los puntos visuales (Ej: "1000" -> "1.000")
+  const formatWithDots = (val: string) => {
+    if (!val) return '';
+    // Quitamos cualquier cosa que no sea número o coma
+    let clean = val.replace(/[^0-9,]/g, ''); 
+    
+    // Separamos enteros de decimales (si usas coma)
+    const parts = clean.split(',');
+    
+    // Agregamos puntos de mil a la parte entera
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    
+    // Unimos de nuevo (solo permitimos una coma)
+    return parts.length > 1 ? `${parts[0]},${parts[1].slice(0, 2)}` : parts[0];
+  };
+
+  // 2. Limpia los puntos para guardar en la base de datos (Ej: "1.000" -> "1000")
+  const cleanNumber = (val: string) => {
+    // Reemplaza puntos por nada y coma por punto (para que JS lo entienda como número)
+    return val.replace(/\./g, '').replace(',', '.');
+  };
+
+  // --- FIN HERRAMIENTAS ---
+
+  useEffect(() => {
+    if (visible) {
+      // Al abrir, mostramos el valor actual formateado
+      // Usamos replace para asegurar que el decimal sea coma visualmente
+      setEfectivo(formatWithDots(saldoActual.efectivo.toString().replace('.', ',')));
+      setVirtual(formatWithDots(saldoActual.virtual.toString().replace('.', ',')));
+    }
+  }, [visible, saldoActual]);
+
   const handleConfirm = async () => {
-    if (!monto) return;
-    
     setLoading(true);
-    await onConfirm(parseFloat(monto), tipo);
+    // Enviamos los valores LIMPIOS al backend
+    await onConfirm(cleanNumber(efectivo), cleanNumber(virtual));
     setLoading(false);
-    
-    // Limpiamos el formulario al cerrar
-    setMonto('');
-    setTipo('efectivo');
     onClose();
   };
 
@@ -42,34 +75,29 @@ export const AddMoneyModal = ({ visible, onClose, onConfirm }: Props) => {
     >
       <View style={styles.centeredView}>
         <View style={styles.modalView}>
-          <Text style={styles.modalTitle}>Ingresar Dinero 💰</Text>
+          <Text style={styles.modalTitle}>💰 Gestionar Mi Dinero</Text>
+          <Text style={styles.subtitle}>Actualiza los montos reales que tienes.</Text>
 
-          <Text style={styles.label}>¿Cuánto dinero vas a ingresar?</Text>
+          {/* INPUT EFECTIVO */}
+          <Text style={styles.label}>💵 Efectivo en mano:</Text>
           <TextInput
             style={styles.input}
-            placeholder="0.00"
-            keyboardType="numeric"
-            value={monto}
-            onChangeText={setMonto}
-            autoFocus={true} // El teclado sale automático
+            placeholder="0"
+            keyboardType="numeric" // Teclado numérico
+            value={efectivo}
+            // Al escribir, aplicamos el formato visual instantáneamente
+            onChangeText={(text) => setEfectivo(formatWithDots(text))}
           />
 
-          <Text style={styles.label}>¿A dónde va el dinero?</Text>
-          <View style={styles.switchContainer}>
-            <TouchableOpacity 
-                style={[styles.optionBtn, tipo === 'efectivo' && styles.selectedOption]}
-                onPress={() => setTipo('efectivo')}
-            >
-                <Text style={[styles.optionText, tipo === 'efectivo' && styles.selectedText]}>💵 Efectivo</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-                style={[styles.optionBtn, tipo === 'virtual' && styles.selectedOption]}
-                onPress={() => setTipo('virtual')}
-            >
-                <Text style={[styles.optionText, tipo === 'virtual' && styles.selectedText]}>💳 Virtual</Text>
-            </TouchableOpacity>
-          </View>
+          {/* INPUT VIRTUAL */}
+          <Text style={styles.label}>💳 Dinero en Banco/Apps:</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="0"
+            keyboardType="numeric"
+            value={virtual}
+            onChangeText={(text) => setVirtual(formatWithDots(text))}
+          />
 
           <View style={styles.actionButtons}>
             <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
@@ -81,7 +109,11 @@ export const AddMoneyModal = ({ visible, onClose, onConfirm }: Props) => {
                 onPress={handleConfirm}
                 disabled={loading}
             >
-                {loading ? <ActivityIndicator color="white" /> : <Text style={styles.confirmText}>Guardar</Text>}
+                {loading ? (
+                    <ActivityIndicator color="white" />
+                ) : (
+                    <Text style={styles.confirmText}>Actualizar Saldos</Text>
+                )}
             </TouchableOpacity>
           </View>
         </View>
@@ -95,7 +127,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)', // Fondo oscuro transparente
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalView: {
     width: '85%',
@@ -108,30 +140,24 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-  label: { fontSize: 14, color: '#666', marginBottom: 10 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 5, textAlign: 'center' },
+  subtitle: { fontSize: 14, color: '#666', marginBottom: 20, textAlign: 'center' },
+  label: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 5 },
   input: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#6200ee',
-    fontSize: 30,
-    textAlign: 'center',
-    marginBottom: 25,
+    backgroundColor: '#f9f9f9',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 24, // Hice la letra más grande para leer mejor los números
+    fontWeight: 'bold', // Y negrita
+    textAlign: 'center', // Y centrado, queda más estilo "banco"
+    marginBottom: 20,
     color: '#333'
   },
-  switchContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
-    padding: 5,
-    marginBottom: 25
-  },
-  optionBtn: { flex: 1, padding: 10, borderRadius: 8, alignItems: 'center' },
-  selectedOption: { backgroundColor: 'white', elevation: 2 },
-  optionText: { color: '#666', fontWeight: '600' },
-  selectedText: { color: '#000', fontWeight: 'bold' },
-  actionButtons: { flexDirection: 'row', justifyContent: 'space-between' },
-  cancelBtn: { padding: 15 },
+  actionButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  cancelBtn: { padding: 15, flex: 1, alignItems: 'center' },
   cancelText: { color: 'red', fontWeight: '600' },
-  confirmBtn: { backgroundColor: '#6200ee', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10 },
+  confirmBtn: { backgroundColor: '#6200ee', paddingVertical: 12, borderRadius: 10, flex: 1, alignItems: 'center' },
   confirmText: { color: 'white', fontWeight: 'bold' }
 });
