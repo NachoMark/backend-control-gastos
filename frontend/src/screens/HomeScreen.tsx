@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/axios';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -121,7 +122,7 @@ export const HomeScreen = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <FlatList
                 data={gastos}
                 keyExtractor={(item) => item._id}
@@ -137,7 +138,6 @@ export const HomeScreen = () => {
                             </TouchableOpacity>
                         </View>
 
-                        <Text style={styles.sectionTitle}>Mi Billetera</Text>
 
                         {/* EL HEADER DE DINERO */}
                         <WalletHeader
@@ -180,14 +180,14 @@ export const HomeScreen = () => {
             <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AgregarGasto')}>
                 <Text style={styles.fabText}>+</Text>
             </TouchableOpacity>
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     // ... Tus estilos existentes ...
     // Copia los estilos del archivo anterior, son los mismos
-    container: { flex: 1, backgroundColor: '#f2f2f2', paddingHorizontal: 20, paddingTop: 20 },
+    container: { flex: 1, backgroundColor: '#f2f2f2', paddingHorizontal: 20, paddingTop: -2 },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
     welcomeText: { fontSize: 20, fontWeight: 'bold' },
     logoutText: { color: 'red', fontWeight: '600' },

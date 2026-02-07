@@ -4,6 +4,7 @@ import api from '../api/axios';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { formatCurrency } from '../utils/format';
+import { SafeAreaView } from 'react-native-safe-area-context';
 interface Cuota {
   _id: string;
   descripcion: string;
@@ -135,7 +136,7 @@ export const CuotasScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <TouchableOpacity 
         style={styles.addBtn} 
         onPress={() => navigation.navigate('AddCuota')}
@@ -153,12 +154,12 @@ export const CuotasScreen = () => {
           ListEmptyComponent={<Text style={{textAlign: 'center', marginTop: 20, color: '#999'}}>No tienes compras activas.</Text>}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#f8f9fa' },
+  container: { flex: 1, padding: 20, backgroundColor: '#f8f9fa', paddingTop: 0 },
   addBtn: { backgroundColor: '#000', padding: 15, borderRadius: 8, marginBottom: 20, alignItems: 'center' },
   addBtnText: { color: 'white', fontWeight: 'bold' },
   card: { backgroundColor: 'white', padding: 15, borderRadius: 12, marginBottom: 15, elevation: 2 },
